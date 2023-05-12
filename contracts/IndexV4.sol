@@ -5,12 +5,14 @@ pragma solidity ^0.8.14;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "./IPoolV3.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
+import "./IPoolV4.sol";
 import "./IndexLPToken.sol";
 import "./IDAOTokenFarm.sol";
 
 
-contract IndexV3 is Ownable {
+contract IndexV4 is Ownable {
 
     event Deposited(address indexed user, uint amount);
     event Withdrawn(address indexed user, uint amount);
@@ -24,6 +26,7 @@ contract IndexV3 is Ownable {
     // depositToken token balances
     mapping (address => uint) public deposits;
     mapping (address => uint) public withdrawals;
+    mapping (address => UserInfo[]) public userInfos;
 
     // users that deposited depositToken tokens into their balances
     address[] public users;
@@ -33,11 +36,23 @@ contract IndexV3 is Ownable {
     uint8 immutable feesPercDecimals = 4;
 
 
+    enum UserOperation {
+        NONE,
+        DEPOSIT,
+        WITHDRAWAL
+    }
+
     struct PoolInfo {
         string name;
         address poolAddress;
         address lpTokenAddress;
         uint8 weight;
+    }
+
+    struct UserInfo {
+        uint256 timestamp;
+        UserOperation operation;
+        uint256 amount;
     }
 
     PoolInfo[] public pools;
@@ -62,6 +77,9 @@ contract IndexV3 is Ownable {
         return users;
     }
 
+    function getUserInfos(address account) external view returns (UserInfo[] memory) {
+        return userInfos[account];
+    }
   
     function lpTokensValue (uint lpTokens) public view returns (uint) {
         // the value of 'lpTokens' (Index LP tokens) is the share of the value of the Index  
@@ -94,7 +112,7 @@ contract IndexV3 is Ownable {
         for (uint i=0; i<pools.length; i++) {
             PoolInfo memory pool = pools[i];
             if (pool.poolAddress != address(0x0)) {
-                total += IPoolV3(pool.poolAddress).portfolioValue(address(this));
+                total += IPoolV4(pool.poolAddress).portfolioValue(address(this));
             }
         }
 
@@ -109,23 +127,32 @@ contract IndexV3 is Ownable {
     }
     
     
-    // Deposit the given 'amount' of deposit tokens (e.g USDC) into the MultiPool.
-    // These funds get deposited into the pools in this MultiPool according to each pool's weight.
-    // Users receive MultiPoolLP tokens proportionally to their share of the value currently held in the MultiPool
+    // Deposit the given 'amount' of deposit tokens (e.g USDC) into the Index.
+    // These funds get deposited into the pools in this Index according to each pool's weight.
+    // Users receive Index LP tokens proportionally to their share of the value currently held in the Index
 
     function deposit(uint256 amount) external {
 
-        require(amount > 0, "Deposit amount is 0");
+        if (amount == 0) return;
 
         // remember addresses that deposited tokens
         deposits[msg.sender] += amount;
         totalDeposited += amount;
+
         if (!usersMap[msg.sender]) {
             usersMap[msg.sender] = true;
             users.push(msg.sender);
         }
 
-        // move deposit tokens in the MultiPool
+        userInfos[msg.sender].push(
+            UserInfo({
+                timestamp: block.timestamp,
+                operation: UserOperation.DEPOSIT,
+                amount: amount
+            })
+        );
+
+        // move deposit tokens in the Index
         depositToken.transferFrom(msg.sender, address(this), amount);
 
         // the value in the pools before this deposit
@@ -139,7 +166,7 @@ contract IndexV3 is Ownable {
                 uint allocation = (i < pools.length-1) ? amount * pool.weight / totalWeights : remainingAmount;
                 remainingAmount -= allocation;
                 uint lpReceived = allocateToPool(pool, allocation);
-                require(lpReceived > 0, "LP amount received should be > 0");
+                require(lpReceived > 0, "IndexV4: Invalid LP amount received");
             }
         }
 
@@ -156,44 +183,59 @@ contract IndexV3 is Ownable {
     }
 
 
-   function withdrawLP(uint256 lpAmount) external {
-        uint amount = lpAmount == 0 ? lpToken.balanceOf(msg.sender) : lpAmount;
+   function withdrawAll() external {
+        _withdrawLP(lpToken.balanceOf(msg.sender));
+    }
 
-        require(amount > 0, "Withdrawal amount is 0");
-        require(lpToken.totalSupply() > 0, "No LP tokens minted");
-        require(amount <= lpToken.balanceOf(msg.sender), "LP balance exceeded");
+    function withdrawLP(uint256 lpAmount) external {
+        _withdrawLP(lpAmount);
+    }
+
+   function _withdrawLP(uint256 amount) internal {
+        if (amount == 0) return;
+        
+        require(amount <= lpToken.balanceOf(msg.sender), "IndexV4: LP balance exceeded");
   
-        // calculate percentage of LP being withdrawn
+        // 1. calculate percentage of LP being withdrawn
         uint precision = 10 ** uint(lpToken.decimals());
         uint withdrawnPerc = precision * amount / lpToken.totalSupply();
-        
-        // then burn the LP for this withdrawal
+        bool isWithdrawAll = (amount == lpToken.totalSupply());
+
+        // 2. then burn the LP for this withdrawal
         lpToken.burn(msg.sender, amount);
 
-        bool isWithdrawingAll = amount == lpToken.totalSupply();
         uint depositTokenBalanceBefore = depositToken.balanceOf(address(this));
 
-        // for each pool withdraw the % of LP
+        // 3. for each pool in the index withdraw the % of LP
         for (uint i=0; i<pools.length; i++) {
             PoolInfo memory pool = pools[i];
             if (pool.lpTokenAddress != address(0x0)) {
-                uint multipoolBalance = IERC20(pool.lpTokenAddress).balanceOf(address(this));
-                uint withdrawAmount = isWithdrawingAll ? multipoolBalance : withdrawnPerc * multipoolBalance / precision;
-                IPoolV3(pool.poolAddress).withdrawLP(withdrawAmount);
+                uint indexBalance = IERC20(pool.lpTokenAddress).balanceOf(address(this));
+                uint withdrawAmount = isWithdrawAll ? indexBalance : withdrawnPerc * indexBalance / precision;
+
+                IPoolV4(pool.poolAddress).withdrawLP(withdrawAmount);
             }
         }
 
-        uint amountWithdrawn = depositToken.balanceOf(address(this)) - depositTokenBalanceBefore;
-        require (amountWithdrawn > 0, "Amount withdrawn is 0");
+        uint amountToWithdraw = depositToken.balanceOf(address(this)) - depositTokenBalanceBefore;
+        require (amountToWithdraw > 0, "Amount withdrawn is 0");
 
-        // remember tokens withdrawn
-        withdrawals[msg.sender] += amountWithdrawn;
-        totalWithdrawn += amountWithdrawn;
+        // 4. remember tokens withdrawn
+        withdrawals[msg.sender] += amountToWithdraw;
+        totalWithdrawn += amountToWithdraw;
 
-        // transfer the amount of depoist tokens withdrawn to the user
-        depositToken.transfer(msg.sender, amountWithdrawn);
+        userInfos[msg.sender].push(
+            UserInfo({
+                timestamp: block.timestamp,
+                operation: UserOperation.WITHDRAWAL,
+                amount: amountToWithdraw
+            })
+        );
 
-        emit Withdrawn(msg.sender, amountWithdrawn);
+        // 5. transfer the amount of tokens withdrawn to the user
+        depositToken.transfer(msg.sender, amountToWithdraw);
+
+        emit Withdrawn(msg.sender, amountToWithdraw);
     }
 
 
@@ -211,7 +253,7 @@ contract IndexV3 is Ownable {
         uint withdrawnPerc = precision * lpToWithdraw / lpToken.totalSupply();
         bool isWithdrawingAll = (lpToWithdraw >= lpToken.totalSupply());
 
-        // sum up expected fees value (in stable asset) across all pools in the multipool
+        // sum up expected fees value (in stable asset) across all pools in the Index
         uint feesValue;
         for (uint i=0; i<pools.length; i++) {
             PoolInfo memory pool = pools[i];
@@ -221,15 +263,15 @@ contract IndexV3 is Ownable {
                 uint indexBalance = IERC20(pool.lpTokenAddress).balanceOf(address(this));
                 // the amount to withdraw from the pool is the percentage of Pool LP held by the Index
                 uint withdrawAmount = isWithdrawingAll ? indexBalance : withdrawnPerc * indexBalance / precision;
-                uint feesLP = IPoolV3(pool.poolAddress).feesForWithdraw(withdrawAmount, address(this));
+                uint feesLP = IPoolV4(pool.poolAddress).feesForWithdraw(withdrawAmount, address(this));
 
-                feesValue += IPoolV3(pool.poolAddress).lpTokensValue(feesLP);
+                feesValue += IPoolV4(pool.poolAddress).lpTokensValue(feesLP);
             }
         }
 
         uint lpValue = this.lpTokensValue(lpToWithdraw);
 
-        // lpFees / lpToWithdraw == feesValue / lpValue
+        // lpFees / lpToWithdraw = feesValue / lpValue
         // lpFees := lpToWithdraw * feesValue / lpValue 
         uint lpFees = lpToWithdraw * feesValue / lpValue;
 
@@ -265,32 +307,31 @@ contract IndexV3 is Ownable {
 
     //// INTERNAL FUNCTIONS ////
 
-    // Return the value of all pools in the MultiPool
-    function totalPoolsValue() internal view returns(uint) {
+    // Return the value of all pools in the Index
+    function totalPoolsValue() public view returns(uint) {
         uint total;
         for (uint i=0; i<pools.length; i++) {
             PoolInfo memory pool = pools[i];
             if (pool.poolAddress != address(0x0)) {
-                total += IPoolV3(pool.poolAddress).totalValue();
+                total += IPoolV4(pool.poolAddress).totalValue();
             }
         }
 
         return total;
     }
 
-    // Returns the MultiPool LP tokens representing the % of the value of the 'amount' deposited
-    // with respect to the total value of this MultiPool
+    // Returns the Index LP tokens representing the % of the value of the 'amount' deposited
+    // with respect to the total value of this Index
     function lpTokensForDeposit(uint amount) internal view returns (uint) {
         
         uint depositLPTokens;
         if (lpToken.totalSupply() == 0) {
-             ///// If first deposit => allocate the inital LP tokens amount to the user
+            // If first deposit => allocate the inital LP tokens amount to the user
             depositLPTokens = amount;
         } else {
-            ///// if already have allocated LP tokens => calculate the additional LP tokens for this deposit
-
+            // if already have allocated LP tokens => calculate the additional LP tokens for this deposit
             // calculate portfolio % of the deposit (using 'precision' digits)
-            uint precision = 10 ** uint(lpToken.decimals());
+            uint precision = 10**uint(lpToken.decimals());
             uint depositPercentage = precision * amount / totalValue();
 
             // calculate the amount of LP tokens for the deposit so that they represent 
@@ -316,7 +357,7 @@ contract IndexV3 is Ownable {
 
         // deposit into the pool
         depositToken.approve(pool.poolAddress, amount);
-        IPoolV3(pool.poolAddress).deposit(amount);
+        IPoolV4(pool.poolAddress).deposit(amount);
 
         // return the LP tokens received
         return pooLP.balanceOf(address(this)) - lpBalanceBefore;

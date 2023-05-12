@@ -1,7 +1,7 @@
 {
   "name": "hashstrat-index",
   "version": "0.0.1",
-  "description": "A Pool represending an Index (aka basket) over multiple strategies and asssets, built on top of HashStrat Pools",
+  "description": "Index constract of the HashStrat protocol.",
   "main": "index.js",
   "directories": {
     "test": "test"
@@ -16,14 +16,20 @@
   "author": "cpascoli",
   "license": "MIT",
   "dependencies": {
-    "@openzeppelin/contracts": "^4.7.2",
-    "dotenv": "^16.0.1",
-    "hardhat-abi-exporter": "^2.10.0",
-    "hardhat-contract-sizer": "^2.6.1"
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.7",
+    "@openzeppelin/contracts": "^4.8.1",
+    "dotenv": "^16.0.3"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^1.0.2",
-    "@nomiclabs/hardhat-etherscan": "^3.1.0",
-    "hardhat-deploy": "^0.11.12"
+    "@nomicfoundation/hardhat-toolbox": "^2.0.1",
+    "@nomiclabs/hardhat-ethers": "^2.2.2",
+    "@nomiclabs/hardhat-etherscan": "^3.1.5",
+    "chai": "^4.3.7",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.12.6",
+    "hardhat-abi-exporter": "^2.10.1",
+    "hardhat-contract-sizer": "^2.7.0",
+    "hardhat-deploy": "^0.11.22",
+    "hardhat-gas-reporter": "^1.0.9"
   }
 }

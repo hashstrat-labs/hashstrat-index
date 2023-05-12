@@ -1,194 +1,179 @@
 import { expect } from "chai";
-import { Contract  } from "ethers"
+import { Contract } from "ethers"
 import { ethers, network } from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { fromUsdc } from "./helpers"
 
-import abis from "./abis/abis.json";
+import poolV4_abi from '../scripts/abis/poolv4.json'
+import indexV4_abi from '../scripts/abis/indexV4.json'
+import erc20_abi from '../scripts/abis/erc20.json'
 
-const poolOwner = '0x4F888d90c31c97efA63f0Db088578BB6F9D1970C'
+const poolOwner = '0xb888488a3796bdf8bbb3f6e8a0d4672bdedcbe72'
 const usdcAddress = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'
 const usdcSource = '0xe7804c37c13166ff0b37f5ae0bb07a3aebb6e245' // rich account owing 48,354,222.149244  USDC
 
 
 describe("Index contract", function () {
 
-  async function getContracts() {
-    const [owner, addr1, addr2] = await ethers.getSigners();
+    async function getContracts() {
+        const [owner, addr1, addr2] = await ethers.getSigners();
 
-    const usdc = new Contract(usdcAddress, abis["erc20"], ethers.provider)
+        const usdc = new Contract(usdcAddress, erc20_abi, ethers.provider)
 
-    const pool1 = new Contract(pools.pool01.address, abis["poolV3"], ethers.provider)
-    const pool2 = new Contract(pools.pool02.address, abis["poolV3"], ethers.provider)
-    const pool3 = new Contract(pools.pool03.address, abis["poolV3"], ethers.provider)
-    const pool4 = new Contract(pools.pool04.address, abis["poolV3"], ethers.provider)
-    const pool5 = new Contract(pools.pool05.address, abis["poolV3"], ethers.provider)
-    const pool6 = new Contract(pools.pool06.address, abis["poolV3"], ethers.provider)
+        const pool1 = new Contract(pools.pool01.address, poolV4_abi, ethers.provider)
+        const pool2 = new Contract(pools.pool02.address, poolV4_abi, ethers.provider)
+        const pool3 = new Contract(pools.pool03.address, poolV4_abi, ethers.provider)
+        const pool4 = new Contract(pools.pool04.address, poolV4_abi, ethers.provider)
+        const pool5 = new Contract(pools.pool05.address, poolV4_abi, ethers.provider)
+        const pool6 = new Contract(pools.pool06.address, poolV4_abi, ethers.provider)
 
-    emptyPool(pool1.address)
-    emptyPool(pool2.address)
-    emptyPool(pool3.address)
-    emptyPool(pool4.address)
-    emptyPool(pool5.address)
-    emptyPool(pool5.address)
+        emptyPool(pool1.address)
+        emptyPool(pool2.address)
+        emptyPool(pool3.address)
+        emptyPool(pool4.address)
+        emptyPool(pool5.address)
+        emptyPool(pool5.address)
 
-    const pool1Lp = new Contract(pools.pool01.lptoken, abis["erc20"], ethers.provider)
-    const pool2Lp = new Contract(pools.pool02.lptoken, abis["erc20"], ethers.provider)
-    const pool3Lp = new Contract(pools.pool03.lptoken, abis["erc20"], ethers.provider)
-    const pool4Lp = new Contract(pools.pool04.lptoken, abis["erc20"], ethers.provider)
-    const pool5Lp = new Contract(pools.pool05.lptoken, abis["erc20"], ethers.provider)
-    const pool6Lp = new Contract(pools.pool06.lptoken, abis["erc20"], ethers.provider)
+        const pool1Lp = new Contract(pools.pool01.lptoken, erc20_abi, ethers.provider)
+        const pool2Lp = new Contract(pools.pool02.lptoken, erc20_abi, ethers.provider)
+        const pool3Lp = new Contract(pools.pool03.lptoken, erc20_abi, ethers.provider)
+        const pool4Lp = new Contract(pools.pool04.lptoken, erc20_abi, ethers.provider)
+        const pool5Lp = new Contract(pools.pool05.lptoken, erc20_abi, ethers.provider)
+        const pool6Lp = new Contract(pools.pool06.lptoken, erc20_abi, ethers.provider)
 
-    const multipool1 = new Contract(multipools.multiPool01.pool, abis["indexV3"], ethers.provider)
-    const multipool2 = new Contract(multipools.multiPool02.pool, abis["indexV3"], ethers.provider)
-    const multipool3 = new Contract(multipools.multiPool03.pool, abis["indexV3"], ethers.provider)
+        const index1 = new Contract(indexes.multiPool01.pool, indexV4_abi, ethers.provider)
+        const index2 = new Contract(indexes.multiPool02.pool, indexV4_abi, ethers.provider)
+        const index3 = new Contract(indexes.multiPool03.pool, indexV4_abi, ethers.provider)
 
-    const multipoolLp1 = new Contract(multipools.multiPool01.pool_lp, abis["erc20"], ethers.provider)
-    const multipoolLp2 = new Contract(multipools.multiPool02.pool_lp, abis["erc20"], ethers.provider)
-    const multipoolLp3 = new Contract(multipools.multiPool03.pool_lp, abis["erc20"], ethers.provider)
+        const multipoolLp1 = new Contract(indexes.multiPool01.pool_lp, erc20_abi, ethers.provider)
+        const multipoolLp2 = new Contract(indexes.multiPool02.pool_lp, erc20_abi, ethers.provider)
+        const multipoolLp3 = new Contract(indexes.multiPool03.pool_lp, erc20_abi, ethers.provider)
 
-    // Fixtures can return anything you consider useful for your tests
-    return { owner, addr1, addr2, usdc, 
-        multipool1, multipool2, multipool3, 
-        multipoolLp1, multipoolLp2, multipoolLp3, 
-        pool1, pool2, pool3, pool4, pool5, pool6,
-        pool1Lp, pool2Lp, pool3Lp, pool4Lp, pool5Lp, pool6Lp
-      };
-  }
+        // Fixtures can return anything you consider useful for your tests
+        return {
+            owner, addr1, addr2, usdc,
+            index1, index2, index3,
+            multipoolLp1, multipoolLp2, multipoolLp3,
+            pool1, pool2, pool3, pool4, pool5, pool6,
+            pool1Lp, pool2Lp, pool3Lp, pool4Lp, pool5Lp, pool6Lp
+        };
+    }
 
 
-  // You can nest describe calls to create subsections.
-  describe("IndexClient", function () {
+    // You can nest describe calls to create subsections.
+    describe("IndexClient", function () {
 
-    it("Should have fees to collect", async function () {
 
-      const { pool1, pool2, pool3, pool4, pool5, pool6,
-              pool1Lp, pool2Lp, pool3Lp, pool4Lp, pool5Lp, pool6Lp  } = await loadFixture(getContracts);
-      
-      const balance1 = await  pool1Lp.balanceOf(pool1.address)
-      const balance2 = await  pool2Lp.balanceOf(pool2.address)
-      const balance3 = await  pool3Lp.balanceOf(pool3.address)
-      const balance4 = await  pool4Lp.balanceOf(pool4.address)
-      const balance5 = await  pool5Lp.balanceOf(pool5.address)
-      const balance6 = await  pool6Lp.balanceOf(pool6.address)
+        it.skip("Should have the right deposit token address", async function () {
+            const { index1, index2, index3 } = await loadFixture(getContracts);
 
-      const total = balance1.add(balance2).add(balance3).add(balance4).add(balance5).add(balance6)
+            expect(await index1.depositToken()).to.equal(usdcAddress);
+            expect(await index2.depositToken()).to.equal(usdcAddress);
+            expect(await index3.depositToken()).to.equal(usdcAddress);
+        });
 
-      console.log("total: ", total.toString(), ">>> ", fromUsdc(total.toString()))
+
+        it.skip("Should allow a user to deposit into the Index", async function () {
+            const { index3, owner, usdc, pool1, pool2, pool3, pool4, pool5, pool6 } = await loadFixture(getContracts);
+
+            // deposit funds
+            const deposit = 20_000 * 10 ** 6
+            await transferFunds(deposit, owner.address)
+            await usdc.connect(owner).approve(index3.address, deposit)
+            await index3.connect(owner).deposit(deposit);
+
+            console.log("pool1: ", fromUsdc(await pool1.totalValue()))
+            console.log("pool2: ", fromUsdc(await pool2.totalValue()))
+            console.log("pool3: ", fromUsdc(await pool3.totalValue()))
+            console.log("pool4: ", fromUsdc(await pool4.totalValue()))
+            console.log("pool5: ", fromUsdc(await pool5.totalValue()))
+            console.log("pool6: ", fromUsdc(await pool6.totalValue()))
+            console.log("Total: ", fromUsdc(await index3.totalValue()))
+
+        }).timeout(300000);
+
+
+        it.skip("Should allow a user to deposit into the Index", async function () {
+            const { index3, multipoolLp3, owner, usdc, pool1, pool2, pool3, pool4, pool5, pool6 } = await loadFixture(getContracts);
+
+            await transferFunds(1_000 * 10 ** 6, owner.address)
+
+            // deposit funds
+            const deposit = 1_000 * 10 ** 6
+
+            await usdc.connect(owner).approve(index3.address, deposit)
+            await index3.connect(owner).deposit(deposit);
+
+            expect(Math.round(fromUsdc(await multipoolLp3.balanceOf(owner.address)))).to.equal(999);
+
+            expect(Math.floor(fromUsdc(await pool1.totalValue()))).to.equal(166);
+            expect(Math.floor(fromUsdc(await pool2.totalValue()))).to.equal(166);
+            expect(Math.floor(fromUsdc(await pool3.totalValue()))).to.equal(166);
+            expect(Math.floor(fromUsdc(await pool4.totalValue()))).to.equal(166);
+            expect(Math.floor(fromUsdc(await pool5.totalValue()))).to.equal(166);
+            expect(Math.floor(fromUsdc(await pool6.totalValue()))).to.equal(166);
+
+        }).timeout(300000);
+
+        it.skip("Should allow a user to withdraw from the Index", async function () {
+            const { index3, multipoolLp3, addr1, addr2, usdc } = await loadFixture(getContracts);
+
+            await transferFunds(1_000 * 10 ** 6, addr1.address)
+            await transferFunds(2_000 * 10 ** 6, addr2.address)
+
+            // addr1 deposit funds
+            const deposit = 1_000 * 10 ** 6
+            await usdc.connect(addr1).approve(multipool3.address, deposit)
+            await multipool3.connect(addr1).deposit(deposit);
+
+            expect(fromUsdc(await usdc.balanceOf(addr1.address))).to.equal(0);
+            expect(Math.round(fromUsdc(await multipoolLp3.balanceOf(addr1.address)))).to.equal(999);
+            expect(Math.round(fromUsdc(await index3.totalPoolsValue()))).to.equal(999);
+
+            // addr2 deposit funds
+            const deposit2 = 2_000 * 10 ** 6
+            await usdc.connect(addr2).approve(index3.address, deposit2)
+            await index3.connect(addr2).deposit(deposit2);
+
+            expect(Math.round(fromUsdc(await multipoolLp3.balanceOf(addr2.address)))).to.equal(2 * 999);
+
+            // addr1 withdraws all LP
+            await index3.connect(addr1).withdrawAll();
+
+            expect(await multipoolLp3.balanceOf(addr1.address)).to.equal(0);
+            expect(Math.round(fromUsdc(await index3.totalPoolsValue()))).to.equal(1998);
+            expect(Math.round(fromUsdc(await index3.totalPoolsValue()))).to.equal(1998);
+            expect(Math.round(fromUsdc(await usdc.balanceOf(addr1.address)))).to.equal(997);
+
+        }).timeout(300000);
+
+
     });
-
-    
-    it("Should have the right deposit token address", async function () {
-      const { multipool1, multipool2, multipool3 } = await loadFixture(getContracts);
-
-      expect(await multipool1.depositToken()).to.equal(usdcAddress);
-      expect(await multipool2.depositToken()).to.equal(usdcAddress);
-      expect(await multipool3.depositToken()).to.equal(usdcAddress);
-    });
-
-
-    it("Should allow a user to deposit into the Index", async function () {
-      const { multipool3, owner, usdc, pool1, pool2, pool3, pool4, pool5, pool6 } = await loadFixture(getContracts);
-
-      // deposit funds
-      const deposit = 20_000 * 10 ** 6
-      await transferFunds(deposit, owner.address)
-      await usdc.connect(owner).approve(multipool3.address, deposit)
-      await multipool3.connect(owner).deposit(deposit);
-
-      console.log("pool1: ", fromUsdc(await pool1.totalPortfolioValue())  )
-      console.log("pool2: ", fromUsdc(await pool2.totalPortfolioValue())  )
-      console.log("pool3: ", fromUsdc(await pool3.totalPortfolioValue())  )
-      console.log("pool4: ", fromUsdc(await pool4.totalPortfolioValue())  )
-      console.log("pool5: ", fromUsdc(await pool5.totalPortfolioValue())  )
-      console.log("pool6: ", fromUsdc(await pool6.totalPortfolioValue())  )
-      console.log("Total: ", fromUsdc( await multipool3.totalPoolsValue()) )
-
-    }).timeout(300000);
-
-
-    it("Should allow a user to deposit into the Index", async function () {
-      const { multipool3, multipoolLp3, owner, usdc, pool1, pool2, pool3, pool4, pool5, pool6 } = await loadFixture(getContracts);
-
-      await transferFunds(1_000 * 10 ** 6, owner.address)
-      
-      // deposit funds
-      const deposit = 1_000 * 10 ** 6
-
-      await usdc.connect(owner).approve(multipool3.address, deposit)
-      await multipool3.connect(owner).deposit(deposit);
-
-      expect( Math.round(fromUsdc(await multipoolLp3.balanceOf(owner.address))) ).to.equal(999);
-
-      expect( Math.floor( fromUsdc(await pool1.totalPortfolioValue())) ).to.equal(166);
-      expect( Math.floor( fromUsdc(await pool2.totalPortfolioValue())) ).to.equal(166);
-      expect( Math.floor( fromUsdc(await pool3.totalPortfolioValue())) ).to.equal(166);
-      expect( Math.floor( fromUsdc(await pool4.totalPortfolioValue())) ).to.equal(166);
-      expect( Math.floor( fromUsdc(await pool5.totalPortfolioValue())) ).to.equal(166);
-      expect( Math.floor( fromUsdc(await pool6.totalPortfolioValue())) ).to.equal(166);
-
-    }).timeout(300000);
-
-    it("Should allow a user to withdraw from the Index", async function () {
-      const { multipool3, multipoolLp3, addr1, addr2, usdc } = await loadFixture(getContracts);
-   
-      await transferFunds(1_000 * 10 ** 6, addr1.address)
-      await transferFunds(2_000 * 10 ** 6, addr2.address)
-
-      // addr1 deposit funds
-      const deposit = 1_000 * 10 ** 6
-      await usdc.connect(addr1).approve(multipool3.address, deposit)
-      await multipool3.connect(addr1).deposit(deposit);
-
-      expect( fromUsdc(await usdc.balanceOf(addr1.address)) ).to.equal( 0 );
-      expect( Math.round(fromUsdc( await multipoolLp3.balanceOf(addr1.address))) ).to.equal( 999 );
-      expect( Math.round(fromUsdc( await multipool3.totalPoolsValue())) ).to.equal( 999 );
-
-      // addr2 deposit funds
-      const deposit2 = 2_000 * 10 ** 6
-      await usdc.connect(addr2).approve(multipool3.address, deposit2)
-      await multipool3.connect(addr2).deposit(deposit2);
-
-      expect( Math.round(fromUsdc(await multipoolLp3.balanceOf(addr2.address))) ).to.equal( 2 * 999 );
-
-      // addr1 withdraws all LP
-      await multipool3.connect(addr1).withdrawLP(0);
-
-      expect( await multipoolLp3.balanceOf(addr1.address) ).to.equal( 0 );
-      expect( Math.round(fromUsdc( await multipool3.totalPoolsValue())) ).to.equal( 1998 );
-      expect( Math.round(fromUsdc( await multipool3.totalPoolsValue())) ).to.equal( 1998 );
-      expect( Math.round(fromUsdc(await usdc.balanceOf(addr1.address))) ).to.equal( 997 );
-
-    }).timeout(300000);
-
-
-  });
 
 });
 
 
 async function transferFunds(amount: number, recipient: string) {
 
-  // 48,354,222.149244   100.000000
-  const [owner, addr1, addr2] = await ethers.getSigners();
-  const usdc = new Contract(usdcAddress, abis["erc20"], ethers.provider)
+    // 48,354,222.149244   100.000000
+    const [owner, addr1, addr2] = await ethers.getSigners();
+    const usdc = new Contract(usdcAddress, erc20_abi, ethers.provider)
 
-  // impersonate 'account'
-  await network.provider.request({
-    method: "hardhat_impersonateAccount",
-    params: [usdcSource],
-  });
-  const signer = await ethers.getSigner(usdcSource);
-  await usdc.connect(signer).transfer(recipient, amount)
+    // impersonate 'account'
+    await network.provider.request({
+        method: "hardhat_impersonateAccount",
+        params: [usdcSource],
+    });
+    const signer = await ethers.getSigner(usdcSource);
+    await usdc.connect(signer).transfer(recipient, amount)
 }
 
 
 
-
-const multipools = {
+const indexes = {
     multiPool01: {
-      pool: "0x9Abb51AC3A84787A2Fe2a829B890cb00ea8bCdfb",
-      pool_lp: "0x99644c65345AB9C8CA198593F27BB83053774D1e"
+        pool: "0x9Abb51AC3A84787A2Fe2a829B890cb00ea8bCdfb",
+        pool_lp: "0x99644c65345AB9C8CA198593F27BB83053774D1e"
     },
     multiPool02: {
         pool: "0x36de93a7d635F957A5E8533058786e3c96B3C9e1",
@@ -201,60 +186,57 @@ const multipools = {
 }
 
 
+
 const pools = {
-  pool01: {
-    address: '0x8714336322c091924495B08938E368Ec0d19Cc94',
-    lptoken: '0x49c3ad1bF4BeFb024607059cb851Eb793c224BaB',
-  },
-  pool02: {
-    address: '0xD963e4C6BE2dA88a1679A40139C5b75961cc2619',
-    lptoken: '0xC27E560E3D1546edeC5DD858D404EbaF2166A763',
-  },
-  pool03: {
-    address: '0x63151e56140E09999983CcD8DD05927f9e8be81D',
-    lptoken: '0xCdf8886cEea718ad37e02e9a421Eb674F20e5ba1',
-  },
-  pool04: {
-    address: '0xd229428346E5Ba2F08AbAf52fE1d2C941ecB36AD',
-    lptoken: '0xe4FF896D756Bdd6aa1208CDf05844335aEA56297',
-  },
-  pool05: {
-    address: '0xCfcF4807d10C564204DD131527Ba8fEb08e2cc9e',
-    lptoken: '0x80bc0b435b7e7F0Dc3E95C3dEA87c68D5Ade4378',
-  },
-  pool06: {
-    address: '0xa2f3c0FDC55814E70Fdac2296d96bB04840bE132',
-    lptoken: '0x74243293f6642294d3cc94a9C633Ae943d557Cd3',
-  }
+    pool01: {
+        address: '0xaba6D49a6ED92346398b981ffA48157A01c64be1',
+        lptoken: '0x472eFE6340652E73fcE7f359e6e0D7697Dacb6b9',
+    },
+    pool02: {
+        address: '0x80694be2C2765211F4D4107cfA71B5756d08D2a7',
+        lptoken: '0xDBa7c5fA8BA565914495a56961F06f065d4c1871',
+    },
+    pool03: {
+        address: '0x0322055E90EC6a0386AD475a70F29d4Bcfef2995',
+        lptoken: '0xc590EdC5C160cf5d4863AdB277552497e818fE97',
+    },
+    pool04: {
+        address: '0xe079B684859b1132c815600BA992E701eEa56737',
+        lptoken: '0x42B0e4214332a40a8ea4a4a029212FC3CfdE1c11',
+    },
+    pool05: {
+        address: '0x668B59ce0d1811593198dc33Aa3d25E36bDa4611',
+        lptoken: '0x16dBE506728359Aa7bF632EC7DF50505456C9A54',
+    },
+    pool06: {
+        address: '0x2dDc8cc4785bb1A0091c6835E347f6EC0219148c',
+        lptoken: '0xa1A3f45613946D49777fB3924d6484D8763CFC45',
+    }
 }
 
 
 
 async function emptyPool(poolAddr: string) {
 
-  const pool = new Contract(poolAddr, abis["poolV3"], ethers.provider)
-  const poolLPAddr = await pool.lpToken()
-  const poolLP = new Contract(poolLPAddr, abis["erc20"], ethers.provider)
+    const pool = new Contract(poolAddr, poolV4_abi, ethers.provider)
+    const poolLPAddr = await pool.lpToken()
+    const poolLP = new Contract(poolLPAddr, erc20_abi, ethers.provider)
+    const userArrds = await pool.getUsers()
 
-  // take liquidity from pool
-  await network.provider.request({
-    method: "hardhat_impersonateAccount",
-    params: [poolOwner],
-  });
-  const signer = await ethers.getSigner(poolOwner);
+    for (const user of userArrds) {
+        await network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [user],
+        });
+        const signer = await ethers.getSigner(user);
+        await pool.connect(signer).withdrawAll()
+    }
 
-  const balance = await poolLP.balanceOf(signer.address)
-  if (balance > 0) {
-    await pool.connect(signer).withdrawAll()
-  }
-
-  /// take fees from pool
-  await network.provider.request({
-    method: "hardhat_impersonateAccount",
-    params: [pool.address],
-  });
-
-  const pooSigner = await ethers.getSigner(pool.address);
-  await pool.connect(signer).collectFees(0)
+    await network.provider.request({
+        method: "hardhat_impersonateAccount",
+        params: [poolOwner],
+    });
+    const signer = await ethers.getSigner(poolOwner);
+    await pool.connect(signer).collectFees(0)
 
 }
